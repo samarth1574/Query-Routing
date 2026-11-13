@@ -22,6 +22,7 @@ WORKDIR /app
 COPY --from=build /opt/venv /opt/venv
 COPY --chown=app bankq ./bankq
 COPY --chown=app configs ./configs
+COPY --chown=app knowledge_base ./knowledge_base
 COPY --chown=app web ./web
 COPY --chown=app data/raw ./data/raw
 COPY --from=train --chown=app /app/models ./models

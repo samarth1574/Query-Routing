@@ -1,7 +1,7 @@
 [project]
 name = "bankq"
-version = "2.0.0"
-description = "Classifies customer banking queries and routes them to the right team."
+version = "3.0.0"
+description = "Agentic AI banking assistant: classifies, routes and resolves customer queries with parallel tool calls and RAG."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

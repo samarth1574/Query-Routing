@@ -2,7 +2,7 @@
 
     python -m scripts.benchmark_parallel --n 200 --latency 20 --workers 1 2 4 8
 
-Writes docs/benchmarks/parallel_results.json and prints a Markdown table with throughput,
+Writes docs/benchmarks/parallel_results_io.json (or --out) and prints a Markdown table with throughput,
 latency percentiles, speedup, efficiency and the Karp–Flatt serial fraction.
 """
 
@@ -33,7 +33,7 @@ def main(argv=None):
     ap.add_argument("--latency", type=float, default=20.0, help="simulated latency per tool call (ms)")
     ap.add_argument("--workers", type=int, nargs="+", default=[1, 2, 4, 8])
     ap.add_argument("--strategies", nargs="+", default=["threads", "processes"])
-    ap.add_argument("--out", type=Path, default=ROOT / "docs" / "benchmarks" / "parallel_results.json")
+    ap.add_argument("--out", type=Path, default=ROOT / "docs" / "benchmarks" / "parallel_results_io.json")
     args = ap.parse_args(argv)
     logging.disable(logging.INFO)
 

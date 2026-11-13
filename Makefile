@@ -1,4 +1,4 @@
-.PHONY: install train retrain promote models serve dev seed test lint docker-build docker-up clean
+.PHONY: install train retrain promote models serve serve-agents dev seed test lint bench bench-cpu docker-build docker-up clean
 
 PY ?= .venv/bin/python
 PORT ?= 8077
@@ -21,6 +21,15 @@ promote:          ## make a version the production model: make promote V=v2026..
 
 serve:            ## run the API and web UI
 	$(PY) -m uvicorn bankq.api.app:app --host 127.0.0.1 --port $(PORT)
+
+serve-agents:     ## run with 20 ms simulated tool latency (makes parallel tool calls visible)
+	BANKQ_TOOL_LATENCY_MS=20 $(PY) -m uvicorn bankq.api.app:app --host 127.0.0.1 --port $(PORT)
+
+bench:            ## parallel benchmark, I/O-bound tools (20 ms per call)
+	$(PY) -m scripts.benchmark_parallel --n 200 --latency 20 --workers 2 4 8 --out docs/benchmarks/parallel_results_io.json
+
+bench-cpu:        ## parallel benchmark, CPU-bound (no tool latency)
+	$(PY) -m scripts.benchmark_parallel --n 800 --latency 0 --workers 2 4 8 --out docs/benchmarks/parallel_results_cpu.json
 
 dev:              ## run with auto-reload and readable logs
 	BANKQ_LOG_JSON=false $(PY) -m uvicorn bankq.api.app:app --reload --port $(PORT)

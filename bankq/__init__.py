@@ -1,3 +1,3 @@
-"""Banking query classification and routing."""
+"""Banking query classification, routing and agentic resolution."""
 
-__version__ = "2.0.0"
+__version__ = "3.0.0"
