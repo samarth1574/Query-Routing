@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 
-from .base import AgentContext, AgentOutcome, BaseAgent, ToolCall
+from .base import AgentOutcome, BaseAgent, ToolCall
 from .tools import ToolResult
 
 _SCAM = re.compile(r"\b(scam|scammed|scammer|tricked|safe account|investment scheme|romance|impersonat\w*)\b", re.I)
@@ -209,6 +209,9 @@ class FraudAgent(BaseAgent):
         cr = ctx.customer_ref
         e = ctx.entities
         if stage == 0:
+            if _SCAM.search(ctx.text):
+                # Authorised push payment scams are never auto-actioned: gather evidence for the specialist.
+                return [ToolCall("list_recent_transactions", {"customer_ref": cr, "limit": 5}, "evidence for the fraud team")]
             if ctx.intent in self.CARD_LOSS:
                 # Protect first: blocking does not depend on anything else, so it runs alongside the lookup.
                 return [ToolCall("block_card", {"customer_ref": cr, "reason": ctx.intent}, "stop further misuse now"),
@@ -233,14 +236,16 @@ class FraudAgent(BaseAgent):
         if v:
             t = v["transaction"]
             risk = v["risk_level"]
-            facts.append(f"I found the payment: {_money(t['amount'])} at {t['merchant']} ({t['country']}) on {t['at'][:10]}, "
+            found = "I found the payment" if v["matched_on"] != "latest" else "Your most recent card payment is"
+            facts.append(f"{found}: {_money(t['amount'])} at {t['merchant']} ({t['country']}) on {t['at'][:10]}, "
                          f"risk {v['risk_level']} ({v['risk_score']:.0%}).")
             if t["amount"] >= self.high_value:
                 reasons.append(f"high-value unrecognised payment ({_money(t['amount'])})")
             if v["risk_level"] == "high":
                 reasons.append("transaction risk score is high")
         if blocked:
-            facts.append(f"Your card ending {blocked['card_last4']} is blocked so it can't be used again. {blocked['replacement']}")
+            facts.append(f"Your card ending {blocked['card_last4']} is blocked so it can't be used again. "
+                         f"{blocked['replacement']}")
         if dispute:
             facts.append(f"Dispute {dispute['dispute_ref']} is open; unauthorised payments are normally refunded within "
                          f"{dispute['expected_resolution_days']} working days.")

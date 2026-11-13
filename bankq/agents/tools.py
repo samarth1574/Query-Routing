@@ -133,13 +133,16 @@ class CoreBankingSimulator:
         """Find the transaction the customer is talking about and assess it."""
         self._wait()
         txns = self.customer(customer_ref)["transactions"]
-        match = None
+        match, matched_on = None, "latest"
         if amount is not None:
             match = min(txns, key=lambda t: abs(t["amount"] - amount))
             if abs(match["amount"] - amount) > max(1.0, amount * 0.05):
                 match = None
+            else:
+                matched_on = "amount"
         if match is None and merchant:
             match = next((t for t in txns if t["merchant"].lower() == merchant.lower()), None)
+            matched_on = "merchant" if match else matched_on
         if match is None:
             match = txns[0]
         risk = 0.15
@@ -151,7 +154,7 @@ class CoreBankingSimulator:
             risk += 0.1
         return {"transaction": match, "risk_score": round(min(risk, 0.99), 2),
                 "risk_level": "high" if risk >= 0.6 else "medium" if risk >= 0.35 else "low",
-                "matched_on": "amount" if amount is not None else "merchant" if merchant else "latest"}
+                "matched_on": matched_on}
 
     def block_card(self, customer_ref: str | None = None, reason: str = "customer_request") -> dict:
         self._wait()
@@ -219,7 +222,7 @@ class CoreBankingSimulator:
             case = {"dispute_ref": ref, "customer_ref": customer_ref or "CUST-DEMO", "transaction_id": transaction_id,
                     "reason": reason, "amount": amount, "status": "open",
                     "opened_at": datetime.now(UTC).isoformat(timespec="seconds"),
-                    "expected_resolution_days": 10 if reason == "unrecognised" else 15}
+                    "expected_resolution_days": 10}
             self._disputes[ref] = case
         return case
 

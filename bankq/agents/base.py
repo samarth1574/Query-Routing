@@ -74,9 +74,11 @@ class BaseAgent:
         return r.data if r and r.ok else None
 
     @staticmethod
-    def policy_facts(passages: list[dict], n: int = 2, sentences: int = 2) -> list[str]:
+    def policy_facts(passages: list[dict], n: int = 2, sentences: int = 2, relative: float = 0.5) -> list[str]:
+        """Quote the best passages; a passage must score at least `relative` × the best score to be used."""
         facts = []
-        for p in passages[:n]:
+        best = passages[0]["score"] if passages else 0
+        for p in [p for p in passages if p["score"] >= best * relative][:n]:
             parts = [s.strip() for s in p["text"].split(". ") if s.strip()]
             snippet = ". ".join(parts[:sentences]).rstrip(".") + "."
             facts.append(f"{snippet} [{p['source']} — {p['heading']}]")
