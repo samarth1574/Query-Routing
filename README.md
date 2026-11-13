@@ -1,4 +1,51 @@
-# Routing Desk: banking query classification and routing platform
+# Agentic AI banking query resolution (PDC project)
+
+This project extends **Routing Desk**, an NLP banking query classification and routing system, into an
+**agentic AI system that resolves queries**, and makes it **parallel and distributed**.
+
+```
+Customer query → Intent classification → Router Agent → Specialised Agent → Tools ∥ RAG → Action → Response
+                                                                                     ↘ Human-in-the-loop (risky / unsure)
+```
+
+| | What it adds |
+|---|---|
+| **Router Agent** | Picks the specialist; pulls a query to Fraud when fraud is likely, follows a confident sub-intent |
+| **Specialised agents** | Card, Payments, Loans, Account and Fraud agents that plan tool calls in stages |
+| **Tool calling** | Simulated banking tools: transaction verification, card blocking, loan eligibility, dispute creation, payment status, passcode reset, KYC |
+| **RAG** | Banking policies and FAQs (`knowledge_base/`) retrieved per category; every reply cites its sources |
+| **Human-in-the-loop** | Low confidence, scams, vulnerable customers, high-value fraud, large loans, failed tools or weak grounding go to a person |
+| **Parallelism** | Independent tool calls and retrieval run concurrently inside a request; batches run across threads or processes; benchmarks with speedup, efficiency and Karp–Flatt analysis |
+
+Try it: `make train && make serve-agents`, then open http://127.0.0.1:8077/assistant.
+
+- Design: [docs/AGENTIC_ARCHITECTURE.md](docs/AGENTIC_ARCHITECTURE.md)
+- Parallel and distributed execution, with measurements: [docs/PARALLELISM.md](docs/PARALLELISM.md)
+
+```bash
+curl -X POST http://127.0.0.1:8077/api/v1/resolve -H 'Content-Type: application/json' \
+  -d '{"text": "I do not recognise a payment of £45 at Amazon", "customer_ref": "CUST-001"}'
+```
+
+returns `status: resolved`, `agent: fraud_agent`, the tool trace (stage 1 `verify_transaction`, stage 2
+`block_card` ∥ `create_dispute` in parallel), the retrieved policy passages, timings and a grounded reply.
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/v1/resolve` | Resolve one message end to end; creates a ticket (resolved, or open for a human) |
+| POST | `/api/v1/resolve/batch` | Resolve many messages with `workers` concurrent agents |
+| GET | `/api/v1/agents` | Agents, tools (with side-effect flags) and knowledge-base stats |
+| GET | `/api/v1/knowledge/search?q=&category=` | Query the RAG index directly |
+
+| Benchmark (8-CPU laptop) | Result |
+|---|---|
+| Parallel tools inside a query, 20 ms per tool | p95 latency 77 → 53 ms |
+| 8 threads, I/O-bound batch of 200 | **9.2× speedup**, 251 queries/s |
+| 4 processes, CPU-bound batch of 800 | **3.4× speedup** (threads: 0.9×, GIL-bound) |
+
+---
+
+## The base system: Routing Desk
 
 Routing Desk reads a customer's message from any channel and does the following:
 - masks personal data
@@ -23,7 +70,9 @@ make install     # virtualenv + dependencies
 make train       # train, evaluate, register and promote a model (about 1 minute)
 make seed        # optional: 14 days of demo tickets for the Inbox and Analytics views
 make serve       # http://127.0.0.1:8077   (API docs at /docs)
-make test        # unit, rules, model and API tests
+make test        # unit, rules, model, agent, parallel and API tests
+make serve-agents  # same as serve, with 20 ms simulated tool latency
+make bench       # parallel benchmark (I/O-bound); make bench-cpu for CPU-bound
 ```
 
 Or with Docker: `docker compose up --build`. The image trains the model during the build, runs as a non-root user and has a health check.
@@ -128,9 +177,13 @@ bankq/
   db/          models · session · repository
   api/         app · deps · schemas · observability · routes/
   monitoring/  drift (task 2)
-configs/routing_rules.yaml
+  agents/      tools · rag · entities · specialists · router_agent · escalation · responder · orchestrator
+  parallel/    executor (sequential / threads / processes) · metrics (speedup, efficiency, Karp–Flatt)
+configs/routing_rules.yaml  configs/agent_policy.yaml
+knowledge_base/      policy & FAQ documents for RAG
 web/                 UI
 scripts/seed_demo.py demo traffic
+scripts/benchmark_parallel.py  parallel benchmarks
 tests/               PII, rules, data, model and API tests
 docs/ARCHITECTURE.md
 TASKS.md             remaining work
@@ -149,4 +202,3 @@ TASKS.md             remaining work
 ## Credits
 
 Banking77: Casanueva et al., *Efficient Intent Detection with Dual Sentence Encoders*, 2020, CC BY 4.0. https://github.com/PolyAI-LDN/task-specific-datasets
-# NLP-
