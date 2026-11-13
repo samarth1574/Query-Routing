@@ -76,3 +76,26 @@ class TicketUpdate(BaseModel):
     assignee: str | None = Field(default=None, max_length=64)
     note: str | None = Field(default=None, max_length=2000)
     actor: str = Field(default="agent", max_length=64)
+
+
+class ResolveRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=2000,
+                      examples=["I don't recognise a payment of £45 at Amazon, please help"])
+    channel: Channel = "chat"
+    customer_ref: str | None = Field(default=None, max_length=64, examples=["CUST-001"])
+    create_ticket: bool = True
+    parallel: bool = Field(default=True, description="Run independent tool calls and retrieval concurrently.")
+
+    @field_validator("text")
+    @classmethod
+    def not_blank(cls, v):
+        if not v.strip():
+            raise ValueError("Query text is empty.")
+        return v
+
+
+class ResolveBatchRequest(BaseModel):
+    texts: list[str] = Field(..., min_length=1)
+    customer_refs: list[str | None] | None = None
+    workers: int | None = Field(default=None, ge=1, le=32, description="Queries resolved concurrently.")
+    parallel_tools: bool = True

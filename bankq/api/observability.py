@@ -19,6 +19,18 @@ RULES = Counter("bankq_rules_applied_total", "Business rules applied", ["rule"])
 CONFIDENCE = Histogram("bankq_prediction_confidence", "Top category confidence",
                        buckets=(0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 1.0))
 PII = Counter("bankq_pii_redactions_total", "PII items redacted", ["type"])
+RESOLUTIONS = Counter("bankq_resolutions_total", "Agentic resolutions", ["agent", "status"])
+TOOL_CALLS = Counter("bankq_tool_calls_total", "Agent tool calls", ["tool", "ok"])
+RESOLVE_LATENCY = Histogram("bankq_resolve_seconds", "End-to-end agentic resolution latency", ["agent"],
+                            buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5))
+
+
+def record_resolution(r):
+    RESOLUTIONS.labels(r["agent"], r["status"]).inc()
+    RESOLVE_LATENCY.labels(r["agent"]).observe(r["timing"]["total_ms"] / 1000)
+    for stage in r["actions"]:
+        for c in stage["calls"]:
+            TOOL_CALLS.labels(c["tool"], str(c["ok"]).lower()).inc()
 
 
 def record_decision(d):

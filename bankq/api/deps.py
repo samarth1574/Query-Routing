@@ -17,6 +17,13 @@ def get_router(request: Request):
     return router
 
 
+def get_orchestrator(request: Request):
+    orch = getattr(request.app.state, "orchestrator", None)
+    if orch is None:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Agents are not available: no model loaded.")
+    return orch
+
+
 def get_db():
     with session_scope() as s:
         yield s

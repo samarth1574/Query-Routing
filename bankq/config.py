@@ -22,6 +22,15 @@ class Settings(BaseSettings):
     processed_data_dir: Path = ROOT / "data" / "processed"
     reports_dir: Path = ROOT / "reports"
 
+    # Agentic resolution layer
+    knowledge_dir: Path = ROOT / "knowledge_base"
+    agent_policy_path: Path = ROOT / "configs" / "agent_policy.yaml"
+    # Simulated network latency of each core-banking tool call (0 = instant).
+    tool_latency_ms: float = 0.0
+    # Threads for parallel tool calls / retrieval inside a request, and default batch workers.
+    tool_workers: int = 8
+    batch_workers: int = 4
+
     # Comma-separated keys. Empty means auth is off (local development only).
     api_keys: str = ""
     rate_limit_per_minute: int = 120

@@ -62,9 +62,13 @@ def model_figure(name: str, router_=Depends(get_router)):
 @router.post("/api/v1/admin/reload-model", tags=["admin"], dependencies=[Depends(require_api_key)],
              summary="Hot-swap to the current production model and reload routing rules")
 def reload_model(request: Request):
-    from ..app import build_router
+    from ..app import build_orchestrator, build_router
     old = getattr(request.app.state, "router", None)
+    old_orch = getattr(request.app.state, "orchestrator", None)
     request.app.state.router = build_router()
+    request.app.state.orchestrator = build_orchestrator(request.app.state.router)
+    if old_orch is not None:
+        old_orch.close()
     return {"previous": old.model_version if old else None, "current": request.app.state.router.model_version}
 
 
