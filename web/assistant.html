@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resolution Desk</title>
+  <meta name="description" content="Agentic banking assistant: classifies a query, routes it to a specialised agent, calls banking tools, grounds the answer in policy and escalates risky cases.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f5f6f8; --surface: #fff; --surface-2: #f1f3f6; --border: #e3e6eb; --text: #0e1726; --text-2: #4a5466;
+      --text-3: #7a8394; --brand: #0e1726; --on-brand: #fff; --focus: #2f5bff; --ok: #0f7a4f; --warn: #a86b12; --danger: #c81e33;
+      --payments: #00806a; --cards: #2b4fd8; --loans: #a86b12; --account: #7a3e9d; --fraud: #c81e33;
+      --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace; color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0a0e15; --surface: #111722; --surface-2: #161d2a; --border: #222b3a; --text: #e7ebf1; --text-2: #a6b0bf;
+        --text-3: #758094; --brand: #e7ebf1; --on-brand: #0e1726; --focus: #7b96ff; --ok: #3cc28a; --warn: #d39a3c; --danger: #f0566c;
+        --payments: #21a690; --cards: #6f8bf5; --loans: #b8822a; --account: #ad78d6; --fraud: #f0566c; color-scheme: dark;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 var(--sans); }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 24px;
+             border-bottom: 1px solid var(--border); background: var(--surface); }
+    header h1 { margin: 0; font-size: 16px; font-weight: 600; }
+    header .sub { color: var(--text-3); font-size: 12px; }
+    header a { color: var(--text-2); text-decoration: none; font-size: 13px; }
+    main { max-width: 1180px; margin: 0 auto; padding: 24px 16px; display: grid; grid-template-columns: 1.1fr .9fr; gap: 20px; }
+    @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+    .card h2 { margin: 0 0 12px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); }
+    textarea, input, select { width: 100%; font: inherit; color: inherit; background: var(--surface-2); border: 1px solid var(--border);
+             border-radius: 10px; padding: 10px 12px; }
+    textarea { min-height: 84px; resize: vertical; }
+    textarea:focus, input:focus { outline: 2px solid var(--focus); outline-offset: 1px; }
+    .row { display: flex; gap: 10px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+    .row input { flex: 1; min-width: 140px; }
+    button { font: inherit; font-weight: 500; border-radius: 10px; padding: 9px 16px; border: 1px solid var(--border); cursor: pointer;
+             background: var(--surface); color: var(--text); }
+    button.primary { background: var(--brand); color: var(--on-brand); border-color: var(--brand); }
+    button:disabled { opacity: .5; cursor: progress; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+    .chip { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); cursor: pointer; }
+    label.check { display: flex; gap: 6px; align-items: center; color: var(--text-2); font-size: 13px; }
+    label.check input { width: auto; }
+    .reply { white-space: pre-wrap; background: var(--surface-2); border-radius: 12px; padding: 14px; margin-top: 14px; line-height: 1.6; }
+    .status { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; padding: 3px 10px; border-radius: 999px; }
+    .status.resolved { color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+    .status.escalated { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+    .meta { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 12px; color: var(--text-2); font-size: 13px; }
+    .meta b { color: var(--text); font-weight: 600; }
+    .pipeline { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 12px; color: var(--text-3); margin-bottom: 14px; }
+    .pipeline span { padding: 3px 8px; border-radius: 6px; background: var(--surface-2); }
+    .pipeline span.on { background: var(--brand); color: var(--on-brand); }
+    .stage { border-left: 2px solid var(--border); padding: 2px 0 2px 12px; margin: 10px 0; }
+    .stage-head { font-size: 12px; color: var(--text-3); }
+    .call { font-family: var(--mono); font-size: 12px; margin-top: 4px; }
+    .call .ok { color: var(--ok); } .call .bad { color: var(--danger); }
+    .why { color: var(--text-3); font-family: var(--sans); }
+    .passage { font-size: 13px; padding: 8px 0; border-top: 1px solid var(--border); }
+    .passage:first-child { border-top: 0; }
+    .passage .h { font-weight: 600; }
+    .passage .s { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
+    .reasons { margin: 8px 0 0; padding-left: 18px; color: var(--danger); }
+    .muted { color: var(--text-3); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+    th { color: var(--text-3); font-weight: 500; }
+    .bar { height: 8px; border-radius: 4px; background: var(--focus); }
+    .err { color: var(--danger); margin-top: 8px; min-height: 1em; }
+    .cat { font-weight: 600; }
+    .cat-payments { color: var(--payments); } .cat-cards { color: var(--cards); } .cat-loans { color: var(--loans); }
+    .cat-account { color: var(--account); } .cat-fraud { color: var(--fraud); }
+    .span2 { grid-column: 1 / -1; }
+  </style>
+</head>
+<body>
+<header>
+  <div><h1>Resolution Desk</h1><div class="sub">Agentic AI banking assistant · query → classify → router agent → specialist → tools ∥ RAG → reply or human</div></div>
+  <a href="/">← Routing Desk</a>
+</header>
+<main>
+  <section class="card">
+    <h2>Customer message</h2>
+    <form id="form">
+      <textarea id="text" placeholder="e.g. I don't recognise a payment of £45 at Amazon" required></textarea>
+      <div class="row">
+        <input id="cref" placeholder="Customer ref (optional)" value="CUST-001" aria-label="Customer reference">
+        <label class="check"><input type="checkbox" id="parallel" checked> Parallel tools</label>
+        <button class="primary" id="go" type="submit">Resolve</button>
+      </div>
+      <div class="chips" id="examples"></div>
+    </form>
+    <div class="err" id="err"></div>
+    <div id="out" hidden>
+      <div class="meta" id="meta"></div>
+      <div class="reply" id="reply"></div>
+      <ul class="reasons" id="reasons"></ul>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Agent trace</h2>
+    <div class="pipeline" id="pipe"></div>
+    <div id="trace" class="muted">Resolve a message to see the router's reasoning, the tool calls and their timing.</div>
+    <h2 style="margin-top:18px">Retrieved policy (RAG)</h2>
+    <div id="kb" class="muted">–</div>
+  </section>
+
+  <section class="card span2">
+    <h2>Parallel batch</h2>
+    <p class="muted" style="margin:0">Resolve many messages at once. Classification is vectorised for the whole batch; each query's agent work then runs on its own worker thread.</p>
+    <div class="row">
+      <label class="check">Queries <input id="bn" type="number" min="5" max="500" value="60" style="width:90px"></label>
+      <label class="check">Workers <select id="bw" style="width:90px"><option>1</option><option>2</option><option selected>4</option><option>8</option><option>16</option></select></label>
+      <button id="bgo" type="button">Run batch</button>
+      <button id="bcmp" type="button">Compare 1 / 2 / 4 / 8 workers</button>
+    </div>
+    <div class="err" id="berr"></div>
+    <div id="bout"></div>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const KEY = (() => { try { return localStorage.getItem("routing-desk-api-key") || ""; } catch { return ""; } })();
+async function post(path, data) {
+  const headers = { "Content-Type": "application/json" };
+  if (KEY) headers["X-API-Key"] = KEY;
+  const res = await fetch(path, { method: "POST", headers, body: JSON.stringify(data) });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((typeof body.detail === "string" && body.detail) || body.detail?.[0]?.msg || `Server returned ${res.status}`);
+  return body;
+}
+const EXAMPLES = [
+  "I don't recognise a payment of £45 at Amazon",
+  "My card 4539 1488 0343 6467 was skimmed at the ATM",
+  "Am I eligible for a car loan of £15,000 over 4 years?",
+  "My transfer of £200 is still pending",
+  "I was charged twice for £30 at Tesco",
+  "I forgot my passcode",
+  "I was scammed into moving money to a safe account",
+  "My husband passed away, I can't keep up the loan repayments",
+];
+$("examples").innerHTML = EXAMPLES.map((e) => `<button type="button" class="chip">${esc(e)}</button>`).join("");
+$("examples").addEventListener("click", (e) => { if (e.target.classList.contains("chip")) { $("text").value = e.target.textContent; $("form").requestSubmit(); } });
+
+function renderTrace(r) {
+  const steps = ["Query", "PII mask", "Classifier", "Router agent", r.agent.replace("_", " "), "Tools ∥ RAG", r.status === "escalated" ? "Human" : "Reply"];
+  $("pipe").innerHTML = steps.map((s, i) => `<span class="${i === steps.length - 1 ? "on" : ""}">${esc(s)}</span>`).join("→");
+  const route = r.routing.reasons.map((x) => `<div>• ${esc(x)}</div>`).join("");
+  const stages = r.actions.map((s) => `<div class="stage"><div class="stage-head">Stage ${s.stage + 1} · ${s.calls.length} call${s.calls.length > 1 ? "s" : ""}${s.parallel ? " in parallel" : ""} · ${s.wall_ms} ms wall</div>` +
+    s.calls.map((c) => `<div class="call"><span class="${c.ok ? "ok" : "bad"}">${c.ok ? "✓" : "✗"}</span> ${esc(c.tool)}(${esc(Object.entries(c.args).filter(([k]) => k !== "customer_ref").map(([k, v]) => `${k}=${v}`).join(", "))}) · ${c.latency_ms} ms <span class="why">— ${esc(c.why)}</span></div>`).join("") + "</div>").join("");
+  const t = r.timing;
+  $("trace").className = "";
+  $("trace").innerHTML = `<div style="font-size:13px">${route}</div>${stages || '<div class="muted" style="margin-top:8px">No tool calls (handed straight to a human).</div>'}` +
+    `<div class="muted" style="margin-top:8px;font-size:12px">Total ${t.total_ms} ms · tool time ${t.tool_ms_sum} ms summed vs ${t.tool_ms_wall} ms wall${t.tool_ms_wall ? ` (${(t.tool_ms_sum / Math.max(t.tool_ms_wall, 0.01)).toFixed(2)}× overlap)` : ""}</div>`;
+  $("kb").className = "";
+  $("kb").innerHTML = (r.knowledge || []).map((p) => `<div class="passage"><div class="h">${esc(p.heading)} <span class="s">${esc(p.source)} · score ${p.score}</span></div><div>${esc(p.text)}</div></div>`).join("") || '<span class="muted">No passage matched.</span>';
+}
+
+$("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $("err").textContent = ""; $("go").disabled = true;
+  try {
+    const r = await post("/api/v1/resolve", { text: $("text").value, customer_ref: $("cref").value || null, parallel: $("parallel").checked });
+    $("out").hidden = false;
+    const conf = Math.round(r.routing.classifier.confidence * 100);
+    $("meta").innerHTML = `<span class="status ${r.status}">${r.status === "resolved" ? "Resolved by agent" : "Escalated to a human"}</span>` +
+      `<span>Category <b class="cat cat-${r.category}">${esc(r.category)}</b></span><span>Agent <b>${esc(r.agent)}</b></span>` +
+      `<span>Confidence <b>${conf}%</b></span><span>Risk <b>${esc(r.risk)}</b></span>` + (r.ticket_ref ? `<span>Ticket <b>${esc(r.ticket_ref)}</b></span>` : "") +
+      (r.pii_redacted.length ? `<span>PII masked <b>${esc(r.pii_redacted.join(", "))}</b></span>` : "");
+    $("reply").textContent = r.reply;
+    $("reasons").innerHTML = r.escalation.reasons.map((x) => `<li>${esc(x)}</li>`).join("");
+    renderTrace(r);
+  } catch (err) { $("err").textContent = err.message; }
+  finally { $("go").disabled = false; }
+});
+
+const SAMPLE = EXAMPLES.concat(["my card is not working", "how long does a bank transfer take", "can I get a virtual card", "what documents do I need to verify my identity", "when is my next loan payment due", "why was my top up reverted", "I lost my phone", "my pin is blocked"]);
+const batchTexts = (n) => Array.from({ length: n }, (_, i) => SAMPLE[i % SAMPLE.length]);
+async function runBatch(n, w) {
+  return post("/api/v1/resolve/batch", { texts: batchTexts(n), customer_refs: Array.from({ length: n }, (_, i) => `CUST-${String(i % 25).padStart(3, "0")}`), workers: w });
+}
+$("bgo").addEventListener("click", async () => {
+  $("berr").textContent = ""; $("bgo").disabled = true;
+  try {
+    const s = (await runBatch(+$("bn").value, +$("bw").value)).summary;
+    const agents = Object.entries(s.by_agent).map(([a, c]) => `${esc(a)} ${c}`).join(" · ");
+    $("bout").innerHTML = `<div class="meta"><span>Total <b>${s.total}</b></span><span>Resolved <b>${s.resolved}</b></span><span>Escalated <b>${s.escalated}</b></span>` +
+      `<span>Workers <b>${s.workers}</b></span><span>Wall <b>${s.wall_ms} ms</b></span><span>Throughput <b>${s.throughput_qps} q/s</b></span>` +
+      `<span>Sum of per-query time <b>${s.sum_of_request_ms} ms</b></span></div><div class="muted" style="margin-top:6px">${agents}</div>`;
+  } catch (err) { $("berr").textContent = err.message; }
+  finally { $("bgo").disabled = false; }
+});
+$("bcmp").addEventListener("click", async () => {
+  $("berr").textContent = ""; $("bcmp").disabled = true;
+  try {
+    const n = +$("bn").value, rows = [];
+    for (const w of [1, 2, 4, 8]) rows.push((await runBatch(n, w)).summary);
+    const base = rows[0].wall_ms, max = Math.max(...rows.map((r) => base / r.wall_ms));
+    $("bout").innerHTML = `<table><thead><tr><th>Workers</th><th>Wall (ms)</th><th>Throughput (q/s)</th><th>Speedup</th><th>Efficiency</th><th style="width:30%"></th></tr></thead><tbody>` +
+      rows.map((r) => { const sp = base / r.wall_ms; return `<tr><td>${r.workers}</td><td>${r.wall_ms}</td><td>${r.throughput_qps}</td><td>${sp.toFixed(2)}×</td><td>${(sp / r.workers).toFixed(2)}</td><td><div class="bar" style="width:${(sp / max) * 100}%"></div></td></tr>`; }).join("") +
+      `</tbody></table><p class="muted" style="font-size:12px">Speedup depends on BANKQ_TOOL_LATENCY_MS: with simulated network latency the tool waits overlap across threads; with 0 ms the work is CPU-bound and the GIL limits threads (see docs/PARALLELISM.md).</p>`;
+  } catch (err) { $("berr").textContent = err.message; }
+  finally { $("bcmp").disabled = false; }
+});
+</script>
+</body>
+</html>
