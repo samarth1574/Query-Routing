@@ -1,0 +1,25 @@
+# Agentic resolution policy. Change without retraining; reloaded with POST /api/v1/admin/reload-model.
+
+escalation:
+  # Hand to a human when the classifier itself was unsure.
+  on_low_confidence: true
+  # Hand to a human if any tool call failed (the agent could not act).
+  on_tool_failure: true
+  # The best retrieved policy passage must score at least this, otherwise the answer is not grounded.
+  min_grounding_score: 0.05
+  # Business rules (configs/routing_rules.yaml) that always need a person.
+  sensitive_rules: [vulnerable_customer, formal_complaint, account_takeover]
+
+agents:
+  # Payments agent opens duplicate-charge disputes on its own up to this amount (GBP).
+  auto_dispute_limit: 100
+  # Loans agent answers eligibility on its own up to this amount; above it an underwriter takes over.
+  loan_auto_limit: 25000
+  # Fraud agent escalates unrecognised payments at or above this amount.
+  fraud_high_value: 500
+
+parallelism:
+  # Worker threads shared by tool calls and retrieval inside one request.
+  tool_workers: 8
+  # Default workers for /api/v1/resolve/batch.
+  batch_workers: 4
